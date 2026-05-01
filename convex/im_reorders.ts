@@ -101,12 +101,17 @@ export const markReceived = mutation({
     const reorder = await ctx.db.get(args.id);
     if (!reorder) throw new Error("Reorder not found");
 
-    // Add stock
+    // Add stock + auto-set expiry if shelf life is configured
     const ingredient = await ctx.db.get(reorder.ingredientId);
     if (ingredient) {
-      await ctx.db.patch(reorder.ingredientId, {
+      const patch: Record<string, unknown> = {
         currentStock: ingredient.currentStock + reorder.quantity,
-      });
+      };
+      // Auto-calculate new expiry from shelf life
+      if (ingredient.shelfLifeDays && ingredient.shelfLifeDays > 0) {
+        patch.expiryDate = Date.now() + ingredient.shelfLifeDays * 24 * 60 * 60 * 1000;
+      }
+      await ctx.db.patch(reorder.ingredientId, patch);
     }
 
     await ctx.db.patch(args.id, { status: "received", updatedAt: Date.now() });
@@ -197,17 +202,59 @@ export const checkAndCreateReorder = internalMutation({
     const criticalPct = ((await getSetting(ctx, "criticalStockPct")) as number) ?? 0.4;
     const isCritical = ingredient.currentStock <= ingredient.parLevel * criticalPct;
 
+    // Smart quantity: daily consumption x days until next delivery + par buffer
+    let smartQty = ingredient.reorderQty; // fallback
+    try {
+      const recipeLinks = await ctx.db
+        .query("im_recipes")
+        .withIndex("by_ingredientId", (q) => q.eq("ingredientId", args.ingredientId))
+        .take(50);
+
+      const { getDayMultipliers: getMultipliers } = await import("./im_settings");
+      const multipliers = await getMultipliers(ctx);
+      const avgMultiplier = Object.values(multipliers).reduce((a, b) => a + b, 0) / 7;
+
+      let dailyConsumption = 0;
+      for (const link of recipeLinks) {
+        const profile = await ctx.db
+          .query("im_demandProfiles")
+          .withIndex("by_menuItemId", (q) => q.eq("menuItemId", link.menuItemId))
+          .unique();
+        if (profile) {
+          dailyConsumption += profile.baseline * avgMultiplier * link.quantityNeeded;
+        }
+      }
+
+      let daysUntilDelivery = 7;
+      if (supplier && supplier.deliveryDays.length > 0) {
+        const today = new Date().getDay();
+        let minDays = 7;
+        for (const day of supplier.deliveryDays) {
+          let diff = day - today;
+          if (diff <= 0) diff += 7;
+          if (diff < minDays) minDays = diff;
+        }
+        daysUntilDelivery = minDays;
+      }
+
+      const calculated = Math.ceil(
+        dailyConsumption * daysUntilDelivery + ingredient.parLevel - ingredient.currentStock
+      );
+      smartQty = Math.max(ingredient.reorderQty, calculated);
+    } catch {
+      // fallback to fixed reorderQty
+    }
+
     await ctx.db.insert("im_reorders", {
       ingredientId: args.ingredientId,
       ingredientName: ingredient.name,
       supplierId: ingredient.supplierId,
       supplierName: supplier?.name,
-      quantity: ingredient.reorderQty,
+      quantity: smartQty,
       unit: ingredient.unit,
-      // Critical = auto-approved, Low = suggested (needs manager OK)
       status: isCritical ? "approved" : "suggested",
       trigger: isCritical ? "critical" : "low",
-      estimatedCost: ingredient.reorderQty * ingredient.costPerUnit,
+      estimatedCost: smartQty * ingredient.costPerUnit,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });

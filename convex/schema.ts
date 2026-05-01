@@ -102,14 +102,17 @@ export default defineSchema({
     unit: v.string(),
     currentStock: v.number(),
     parLevel: v.number(),
-    reorderQty: v.number(),
+    reorderQty: v.number(), // fallback if smart calc unavailable
     costPerUnit: v.number(), // cents
     category: v.string(), // "proteins", "dairy", "produce", "dough_bread", "dry_pantry"
     supplierId: v.optional(v.id("im_suppliers")),
     isActive: v.boolean(),
+    expiryDate: v.optional(v.number()), // timestamp — when current stock expires
+    shelfLifeDays: v.optional(v.number()), // typical shelf life for this ingredient
   })
     .index("by_category", ["category"])
-    .index("by_name", ["name"]),
+    .index("by_name", ["name"])
+    .index("by_expiryDate", ["expiryDate"]),
 
   im_recipes: defineTable({
     menuItemId: v.id("menuItems"),

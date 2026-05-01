@@ -58,6 +58,8 @@ export const update = mutation({
     category: v.optional(v.string()),
     supplierId: v.optional(v.id("im_suppliers")),
     isActive: v.optional(v.boolean()),
+    expiryDate: v.optional(v.number()),
+    shelfLifeDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { id, ...fields } = args;
