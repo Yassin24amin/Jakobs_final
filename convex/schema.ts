@@ -158,4 +158,59 @@ export default defineSchema({
     key: v.string(),
     value: v.string(),
   }).index("by_key", ["key"]),
+
+  im_reorders: defineTable({
+    ingredientId: v.id("im_ingredients"),
+    ingredientName: v.string(), // denormalized
+    supplierId: v.optional(v.id("im_suppliers")),
+    supplierName: v.optional(v.string()), // denormalized
+    quantity: v.number(), // how much to order
+    unit: v.string(),
+    status: v.union(
+      v.literal("suggested"),  // system auto-suggested, needs manager approval
+      v.literal("approved"),   // manager approved, ready to send
+      v.literal("ordered"),    // order placed with supplier
+      v.literal("received"),   // stock received and added
+      v.literal("dismissed")   // manager dismissed this suggestion
+    ),
+    trigger: v.union(
+      v.literal("low"),        // stock fell below parLevel
+      v.literal("critical"),   // stock fell below 50% of parLevel — auto-created
+      v.literal("manual")      // manager created manually
+    ),
+    estimatedCost: v.number(), // cents: quantity × costPerUnit
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_ingredientId", ["ingredientId"])
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
+
+  im_wasteLog: defineTable({
+    reason: v.union(
+      v.literal("expired"),
+      v.literal("overcooked"),
+      v.literal("customer_return"),
+      v.literal("spillage"),
+      v.literal("contaminated"),
+      v.literal("other")
+    ),
+    reasonNote: v.optional(v.string()), // free-text detail
+    // Each report can have multiple waste lines (batch reporting)
+    items: v.array(
+      v.object({
+        ingredientId: v.id("im_ingredients"),
+        ingredientName: v.string(),
+        quantity: v.number(),
+        unit: v.string(),
+        costCents: v.number(), // quantity × costPerUnit at time of report
+      })
+    ),
+    // Optional: if waste came from a whole menu item (e.g. "3 burnt shawarmas")
+    menuItemId: v.optional(v.id("menuItems")),
+    menuItemName: v.optional(v.string()),
+    menuItemQty: v.optional(v.number()),
+    totalCostCents: v.number(), // sum of all item costs
+    reportedAt: v.number(),
+  }).index("by_reportedAt", ["reportedAt"]),
 });
