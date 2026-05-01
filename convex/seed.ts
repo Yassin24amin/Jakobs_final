@@ -261,6 +261,7 @@ export const seedMenu = internalMutation({
       },
       {
         name: "Sparkling Water",
+        arabicName: "مياه فوارة",
         description: "Chilled sparkling mineral water.",
         price: 199,
         category: "drinks" as const,

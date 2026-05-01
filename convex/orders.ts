@@ -84,6 +84,7 @@ export const create = mutation({
       deliveryFee,
       paymentMethod: args.paymentMethod,
       paymentStatus: "pending",
+      orderSource: "online",
       createdAt: now,
       updatedAt: now,
     });

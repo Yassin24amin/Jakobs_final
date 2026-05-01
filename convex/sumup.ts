@@ -14,9 +14,18 @@ import { internal } from "./_generated/api";
 //   SUMUP_API_KEY        - API key from SumUp developer portal
 //   SUMUP_MERCHANT_CODE  - Merchant code
 //   SUMUP_READER_ID      - Solo reader device ID (blank until hardware arrives)
+//
+// DEMO MODE: When SUMUP_API_KEY is not set, all actions run in demo mode —
+// simulating the terminal flow with realistic delays so the UI can be tested
+// without hardware or a SumUp account.
 // ---------------------------------------------------------------------------
 
 const SUMUP_API_BASE = "https://api.sumup.com/v0.1";
+const DEMO_PAYMENT_DELAY_MS = 4000; // Simulated tap-to-paid delay
+
+function isDemoMode(): boolean {
+  return !process.env.SUMUP_API_KEY;
+}
 
 function getSumUpHeaders(): Record<string, string> {
   const apiKey = process.env.SUMUP_API_KEY;
@@ -150,6 +159,9 @@ export const getCheckoutStatus = internalAction({
  *
  * The client polls getCheckoutStatus until PAID/FAILED,
  * then calls pos.markPaid to finalize.
+ *
+ * In demo mode (no SUMUP_API_KEY), returns a fake checkout ID that encodes
+ * the creation timestamp so checkPaymentStatus can simulate a realistic delay.
  */
 export const initiatePayment = action({
   args: {
@@ -157,10 +169,17 @@ export const initiatePayment = action({
     orderReference: v.string(), // e.g. "J-0042"
   },
   handler: async (ctx, args): Promise<{ checkoutId: string }> => {
-    // Verify SumUp is configured
-    if (!process.env.SUMUP_API_KEY) {
-      throw new Error("SumUp is not configured. Card payments unavailable.");
+    // ---- DEMO MODE ----
+    if (isDemoMode()) {
+      console.log(
+        `[SumUp DEMO] Simulating terminal payment: €${(args.amount / 100).toFixed(2)} for ${args.orderReference}`
+      );
+      // Encode creation time so polling knows when to flip to PAID
+      const checkoutId = `DEMO-${Date.now()}-${args.orderReference}`;
+      return { checkoutId };
     }
+
+    // ---- REAL MODE ----
     if (!process.env.SUMUP_READER_ID) {
       throw new Error(
         "SumUp reader is not configured. Card payments unavailable."
@@ -191,6 +210,9 @@ export const initiatePayment = action({
 /**
  * Public action to check checkout status.
  * Called by the client to poll for payment completion.
+ *
+ * In demo mode, simulates a PENDING → PAID transition after
+ * DEMO_PAYMENT_DELAY_MS has elapsed since checkout creation.
  */
 export const checkPaymentStatus = action({
   args: {
@@ -200,6 +222,33 @@ export const checkPaymentStatus = action({
     ctx,
     args
   ): Promise<{ status: string; transactionId: string | null }> => {
+    // ---- DEMO MODE ----
+    if (args.checkoutId.startsWith("DEMO-")) {
+      // Reject demo checkout IDs when running in production
+      if (!isDemoMode()) {
+        throw new Error("Invalid checkout ID");
+      }
+
+      // Extract creation timestamp from the checkout ID
+      const parts = args.checkoutId.split("-");
+      const createdAt = parseInt(parts[1], 10);
+      const elapsed = Date.now() - createdAt;
+
+      if (elapsed >= DEMO_PAYMENT_DELAY_MS) {
+        console.log("[SumUp DEMO] Simulated payment successful");
+        return {
+          status: "PAID",
+          transactionId: `DEMO-TXN-${Date.now()}`,
+        };
+      }
+
+      console.log(
+        `[SumUp DEMO] Waiting for tap... ${Math.round(elapsed / 1000)}s / ${DEMO_PAYMENT_DELAY_MS / 1000}s`
+      );
+      return { status: "PENDING", transactionId: null };
+    }
+
+    // ---- REAL MODE ----
     const result: { status: string; transactionId: string | null } =
       await ctx.runAction(internal.sumup.getCheckoutStatus, {
         checkoutId: args.checkoutId,
