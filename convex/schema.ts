@@ -94,4 +94,68 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_tokenIdentifier", ["tokenIdentifier"]),
+
+  // ─── Inventory Management (im_* files) ───
+
+  im_ingredients: defineTable({
+    name: v.string(),
+    unit: v.string(),
+    currentStock: v.number(),
+    parLevel: v.number(),
+    reorderQty: v.number(),
+    costPerUnit: v.number(), // cents
+    category: v.string(), // "proteins", "dairy", "produce", "dough_bread", "dry_pantry"
+    supplierId: v.optional(v.id("im_suppliers")),
+    isActive: v.boolean(),
+  })
+    .index("by_category", ["category"])
+    .index("by_name", ["name"]),
+
+  im_recipes: defineTable({
+    menuItemId: v.id("menuItems"),
+    ingredientId: v.id("im_ingredients"),
+    quantityNeeded: v.number(),
+  })
+    .index("by_menuItemId", ["menuItemId"])
+    .index("by_ingredientId", ["ingredientId"]),
+
+  im_suppliers: defineTable({
+    name: v.string(),
+    phone: v.optional(v.string()),
+    email: v.optional(v.string()),
+    deliveryDays: v.array(v.number()), // 0=Sun ... 6=Sat
+    notes: v.optional(v.string()),
+  }),
+
+  im_demandProfiles: defineTable({
+    menuItemId: v.id("menuItems"),
+    baseline: v.number(),
+    lastUpdated: v.number(),
+  }).index("by_menuItemId", ["menuItemId"]),
+
+  im_salesLog: defineTable({
+    menuItemId: v.id("menuItems"),
+    quantity: v.number(),
+    soldAt: v.number(),
+    source: v.union(v.literal("in_store"), v.literal("online")),
+  }).index("by_soldAt", ["soldAt"]),
+
+  im_prepRecipes: defineTable({
+    name: v.string(),
+    description: v.string(),
+    restTimeHours: v.number(),
+    category: v.string(),
+    inputs: v.array(
+      v.object({
+        ingredientId: v.id("im_ingredients"),
+        quantity: v.number(),
+      })
+    ),
+    outputDescription: v.string(),
+  }),
+
+  im_systemSettings: defineTable({
+    key: v.string(),
+    value: v.string(),
+  }).index("by_key", ["key"]),
 });
