@@ -20,4 +20,13 @@ crons.cron(
   {}
 );
 
+// Periodic reorder scan — every 15 minutes.
+// Catches ingredients already below par that no order/waste has triggered yet.
+crons.interval(
+  "reorder scan",
+  { minutes: 15 },
+  internal.im_reorder_scan.scanAll,
+  {}
+);
+
 export default crons;

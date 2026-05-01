@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation, internalMutation } from "./_generated/server";
-import { getSetting } from "./im_settings";
+import { getSetting, getDayMultipliers } from "./im_settings";
 
 /**
  * 3-tier reorder system:
@@ -59,11 +59,24 @@ export const listPending = query({
 export const statusCounts = query({
   args: {},
   handler: async (ctx) => {
-    const all = await ctx.db.query("im_reorders").take(500);
+    const [suggested, approved, ordered] = await Promise.all([
+      ctx.db
+        .query("im_reorders")
+        .withIndex("by_status", (q) => q.eq("status", "suggested"))
+        .collect(),
+      ctx.db
+        .query("im_reorders")
+        .withIndex("by_status", (q) => q.eq("status", "approved"))
+        .collect(),
+      ctx.db
+        .query("im_reorders")
+        .withIndex("by_status", (q) => q.eq("status", "ordered"))
+        .collect(),
+    ]);
     return {
-      suggested: all.filter((r) => r.status === "suggested").length,
-      approved: all.filter((r) => r.status === "approved").length,
-      ordered: all.filter((r) => r.status === "ordered").length,
+      suggested: suggested.length,
+      approved: approved.length,
+      ordered: ordered.length,
     };
   },
 });
@@ -178,6 +191,10 @@ export const checkAndCreateReorder = internalMutation({
     // Skip if stock is fine
     if (ingredient.currentStock > ingredient.parLevel) return;
 
+    // Configurable: default 0.4 = 40% of par level
+    const criticalPct = ((await getSetting(ctx, "criticalStockPct")) as number) ?? 0.4;
+    const isCritical = ingredient.currentStock <= ingredient.parLevel * criticalPct;
+
     // Check for existing pending reorder (avoid duplicates)
     const existing = await ctx.db
       .query("im_reorders")
@@ -192,15 +209,28 @@ export const checkAndCreateReorder = internalMutation({
         r.status === "approved" ||
         r.status === "ordered"
     );
-    if (hasPending) return;
+
+    // Critical = ALWAYS create a reorder. If there's only a "suggested" one, upgrade it.
+    if (isCritical && hasPending) {
+      const suggestedOrApproved = existing.find((r) => r.status === "suggested" || r.status === "approved");
+      if (suggestedOrApproved) {
+        // Auto-upgrade to ordered
+        await ctx.db.patch(suggestedOrApproved._id, {
+          status: "ordered",
+          trigger: "critical",
+          reason: `Low stock (critical): ${ingredient.currentStock} ${ingredient.unit} remaining, below ${Math.round(criticalPct * 100)}% of par level (${ingredient.parLevel}). Auto-ordered.`,
+          updatedAt: Date.now(),
+        });
+      }
+      // If already ordered, no action needed — it's being handled
+      return;
+    }
+
+    if (hasPending) return; // Low stock with existing reorder — skip
 
     const supplier = ingredient.supplierId
       ? await ctx.db.get(ingredient.supplierId)
       : null;
-
-    // Configurable: default 0.4 = 40% of par level
-    const criticalPct = ((await getSetting(ctx, "criticalStockPct")) as number) ?? 0.4;
-    const isCritical = ingredient.currentStock <= ingredient.parLevel * criticalPct;
 
     // Smart quantity: daily consumption x days until next delivery + par buffer
     let smartQty = ingredient.reorderQty; // fallback
@@ -210,8 +240,7 @@ export const checkAndCreateReorder = internalMutation({
         .withIndex("by_ingredientId", (q) => q.eq("ingredientId", args.ingredientId))
         .take(50);
 
-      const { getDayMultipliers: getMultipliers } = await import("./im_settings");
-      const multipliers = await getMultipliers(ctx);
+      const multipliers = await getDayMultipliers(ctx);
       const avgMultiplier = Object.values(multipliers).reduce((a, b) => a + b, 0) / 7;
 
       let dailyConsumption = 0;
@@ -231,10 +260,15 @@ export const checkAndCreateReorder = internalMutation({
         let minDays = 7;
         for (const day of supplier.deliveryDays) {
           let diff = day - today;
-          if (diff <= 0) diff += 7;
+          if (diff < 0) diff += 7;
           if (diff < minDays) minDays = diff;
         }
         daysUntilDelivery = minDays;
+      }
+
+      // Don't auto-reorder ingredients that no menu item uses (unless truly out of stock)
+      if (recipeLinks.length === 0 && ingredient.currentStock > 0) {
+        return;
       }
 
       const calculated = Math.ceil(
@@ -245,6 +279,10 @@ export const checkAndCreateReorder = internalMutation({
       // fallback to fixed reorderQty
     }
 
+    const reason = isCritical
+      ? `Low stock (critical): ${ingredient.currentStock} ${ingredient.unit} remaining, below ${Math.round(criticalPct * 100)}% of par level (${ingredient.parLevel})`
+      : `Low stock: ${ingredient.currentStock} ${ingredient.unit} remaining, below par level of ${ingredient.parLevel}`;
+
     await ctx.db.insert("im_reorders", {
       ingredientId: args.ingredientId,
       ingredientName: ingredient.name,
@@ -252,8 +290,9 @@ export const checkAndCreateReorder = internalMutation({
       supplierName: supplier?.name,
       quantity: smartQty,
       unit: ingredient.unit,
-      status: isCritical ? "approved" : "suggested",
+      status: isCritical ? "ordered" : "suggested",
       trigger: isCritical ? "critical" : "low",
+      reason,
       estimatedCost: smartQty * ingredient.costPerUnit,
       createdAt: Date.now(),
       updatedAt: Date.now(),

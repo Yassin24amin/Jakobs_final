@@ -126,7 +126,14 @@ export default defineSchema({
     name: v.string(),
     phone: v.optional(v.string()),
     email: v.optional(v.string()),
+    whatsapp: v.optional(v.string()), // whatsapp number (can differ from phone)
+    preferredContact: v.optional(v.union(
+      v.literal("phone"),
+      v.literal("email"),
+      v.literal("whatsapp")
+    )),
     deliveryDays: v.array(v.number()), // 0=Sun ... 6=Sat
+    orderMessageTemplate: v.optional(v.string()), // uses {qty}, {unit}, {ingredient}, {supplier}
     notes: v.optional(v.string()),
   }),
 
@@ -164,24 +171,26 @@ export default defineSchema({
 
   im_reorders: defineTable({
     ingredientId: v.id("im_ingredients"),
-    ingredientName: v.string(), // denormalized
+    ingredientName: v.string(),
     supplierId: v.optional(v.id("im_suppliers")),
-    supplierName: v.optional(v.string()), // denormalized
-    quantity: v.number(), // how much to order
+    supplierName: v.optional(v.string()),
+    quantity: v.number(),
     unit: v.string(),
     status: v.union(
-      v.literal("suggested"),  // system auto-suggested, needs manager approval
-      v.literal("approved"),   // manager approved, ready to send
-      v.literal("ordered"),    // order placed with supplier
-      v.literal("received"),   // stock received and added
-      v.literal("dismissed")   // manager dismissed this suggestion
+      v.literal("suggested"),
+      v.literal("approved"),
+      v.literal("ordered"),
+      v.literal("received"),
+      v.literal("dismissed")
     ),
     trigger: v.union(
-      v.literal("low"),        // stock fell below parLevel
-      v.literal("critical"),   // stock fell below 50% of parLevel — auto-created
-      v.literal("manual")      // manager created manually
+      v.literal("low"),
+      v.literal("critical"),
+      v.literal("expiry"),      // expires soon or already expired
+      v.literal("manual")
     ),
-    estimatedCost: v.number(), // cents: quantity × costPerUnit
+    reason: v.optional(v.string()), // human-readable reason shown to manager
+    estimatedCost: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -207,6 +216,7 @@ export default defineSchema({
         quantity: v.number(),
         unit: v.string(),
         costCents: v.number(), // quantity × costPerUnit at time of report
+        note: v.optional(v.string()), // e.g. capped qty warning
       })
     ),
     // Optional: if waste came from a whole menu item (e.g. "3 burnt shawarmas")

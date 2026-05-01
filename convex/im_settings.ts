@@ -78,6 +78,23 @@ export const getDayMultipliersQuery = query({
 });
 
 /** Get all stock level settings for the settings UI. */
+/** Get waste reasons from settings, or return defaults. */
+export const getWasteReasons = query({
+  args: {},
+  handler: async (ctx) => {
+    const stored = await getSetting(ctx, "wasteReasons");
+    if (Array.isArray(stored)) return stored as { key: string; label: string }[];
+    return [
+      { key: "expired", label: "Expired" },
+      { key: "overcooked", label: "Overcooked" },
+      { key: "customer_return", label: "Customer Return" },
+      { key: "spillage", label: "Spillage" },
+      { key: "contaminated", label: "Contaminated" },
+      { key: "other", label: "Other" },
+    ];
+  },
+});
+
 export const getStockLevelSettings = query({
   args: {},
   handler: async (ctx) => {

@@ -1,4 +1,5 @@
 import { internalMutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 /**
@@ -15,10 +16,10 @@ export const run = internalMutation({
     // ─── 1. Suppliers ───
     const sup: Record<string, Id<"im_suppliers">> = {};
     for (const s of [
-      { name: "Main Meat Supplier", phone: "+1-555-0101", deliveryDays: [1, 3, 5], notes: "Proteins — Mon/Wed/Fri" },
-      { name: "Fresh Produce Market", phone: "+1-555-0102", deliveryDays: [1, 2, 4, 6], notes: "Produce — Mon/Tue/Thu/Sat" },
-      { name: "Bakery & Dry Goods", phone: "+1-555-0103", deliveryDays: [2, 5], notes: "Pita/Flour/Pantry — Tue/Fri" },
-      { name: "Beverage Distributor", phone: "+1-555-0104", deliveryDays: [3], notes: "Drinks — Wed" },
+      { name: "Main Meat Supplier", phone: "+49-170-1234567", email: "orders@meatsupp.de", whatsapp: "+49-170-1234567", preferredContact: "whatsapp" as const, deliveryDays: [1, 3, 5], orderMessageTemplate: "Hi, this is Jakob's Kitchen. Please confirm delivery. Thank you.", notes: "Proteins — Mon/Wed/Fri" },
+      { name: "Fresh Produce Market", phone: "+49-170-2345678", email: "fresh@produce-markt.de", whatsapp: "+49-170-2345678", preferredContact: "phone" as const, deliveryDays: [1, 2, 4, 6], orderMessageTemplate: "Hi, this is Jakob's Kitchen. Please confirm delivery. Thank you.", notes: "Produce — Mon/Tue/Thu/Sat" },
+      { name: "Bakery & Dry Goods", phone: "+49-170-3456789", email: "bestellung@baeckerei.de", whatsapp: "+49-170-3456789", preferredContact: "email" as const, deliveryDays: [2, 5], orderMessageTemplate: "Dear team,\n\nPlease confirm availability and delivery date.\n\nBest regards,\nJakob's Kitchen", notes: "Pita/Flour/Pantry — Tue/Fri" },
+      { name: "Beverage Distributor", phone: "+49-170-4567890", email: "orders@getraenke.de", whatsapp: "+49-170-4567890", preferredContact: "whatsapp" as const, deliveryDays: [3], orderMessageTemplate: "Hi, this is Jakob's Kitchen. Please confirm delivery. Thank you.", notes: "Drinks — Wed" },
     ]) {
       sup[s.name] = await ctx.db.insert("im_suppliers", s);
     }
@@ -26,43 +27,56 @@ export const run = internalMutation({
     // ─── 2. Ingredients ───
     const ing: Record<string, Id<"im_ingredients">> = {};
     const ingredients = [
-      { name: "Chicken Thighs", unit: "kg", currentStock: 18, parLevel: 15, reorderQty: 20, costPerUnit: 850, category: "proteins", supplier: "Main Meat Supplier" },
-      { name: "Lamb Meat", unit: "kg", currentStock: 10, parLevel: 8, reorderQty: 12, costPerUnit: 1800, category: "proteins", supplier: "Main Meat Supplier" },
-      { name: "Beef Doner Meat", unit: "kg", currentStock: 12, parLevel: 10, reorderQty: 15, costPerUnit: 1400, category: "proteins", supplier: "Main Meat Supplier" },
-      { name: "Ground Beef", unit: "kg", currentStock: 6, parLevel: 5, reorderQty: 8, costPerUnit: 1100, category: "proteins", supplier: "Main Meat Supplier" },
-      { name: "Falafel Mix", unit: "kg", currentStock: 4, parLevel: 3, reorderQty: 5, costPerUnit: 500, category: "proteins", supplier: "Main Meat Supplier" },
-      { name: "Mozzarella", unit: "kg", currentStock: 10, parLevel: 8, reorderQty: 12, costPerUnit: 950, category: "dairy", supplier: "Fresh Produce Market" },
-      { name: "Yogurt", unit: "L", currentStock: 6, parLevel: 5, reorderQty: 10, costPerUnit: 350, category: "dairy", supplier: "Fresh Produce Market" },
-      { name: "Feta Cheese", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 4, costPerUnit: 1100, category: "dairy", supplier: "Fresh Produce Market" },
-      { name: "Halloumi", unit: "kg", currentStock: 2, parLevel: 2, reorderQty: 3, costPerUnit: 1500, category: "dairy", supplier: "Fresh Produce Market" },
-      { name: "Tomatoes", unit: "kg", currentStock: 10, parLevel: 8, reorderQty: 12, costPerUnit: 300, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Lettuce", unit: "heads", currentStock: 12, parLevel: 10, reorderQty: 15, costPerUnit: 150, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Onions", unit: "kg", currentStock: 6, parLevel: 5, reorderQty: 8, costPerUnit: 200, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Garlic", unit: "kg", currentStock: 2.5, parLevel: 2, reorderQty: 3, costPerUnit: 600, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Potatoes", unit: "kg", currentStock: 18, parLevel: 15, reorderQty: 20, costPerUnit: 150, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Cucumbers", unit: "kg", currentStock: 5, parLevel: 4, reorderQty: 6, costPerUnit: 250, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Pickled Turnips", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 4, costPerUnit: 400, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Parsley", unit: "bunches", currentStock: 8, parLevel: 6, reorderQty: 10, costPerUnit: 100, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Lemons", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 4, costPerUnit: 350, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Mint", unit: "bunches", currentStock: 5, parLevel: 4, reorderQty: 6, costPerUnit: 120, category: "produce", supplier: "Fresh Produce Market" },
-      { name: "Pita Bread", unit: "pcs", currentStock: 120, parLevel: 100, reorderQty: 150, costPerUnit: 25, category: "dough_bread", supplier: "Bakery & Dry Goods" },
-      { name: "Flatbread", unit: "pcs", currentStock: 80, parLevel: 60, reorderQty: 100, costPerUnit: 30, category: "dough_bread", supplier: "Bakery & Dry Goods" },
-      { name: "Olive Oil", unit: "L", currentStock: 6, parLevel: 5, reorderQty: 10, costPerUnit: 800, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Shawarma Spice Mix", unit: "kg", currentStock: 1.2, parLevel: 1, reorderQty: 2, costPerUnit: 2000, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Tahini", unit: "L", currentStock: 4, parLevel: 3, reorderQty: 5, costPerUnit: 700, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Chickpeas (canned)", unit: "kg", currentStock: 5, parLevel: 4, reorderQty: 8, costPerUnit: 300, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Garlic Sauce", unit: "L", currentStock: 3, parLevel: 2, reorderQty: 5, costPerUnit: 500, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Hot Sauce", unit: "L", currentStock: 2, parLevel: 1.5, reorderQty: 3, costPerUnit: 600, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "French Fry Oil", unit: "L", currentStock: 15, parLevel: 10, reorderQty: 20, costPerUnit: 250, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Rice", unit: "kg", currentStock: 8, parLevel: 5, reorderQty: 10, costPerUnit: 200, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Tomato Sauce", unit: "L", currentStock: 4, parLevel: 3, reorderQty: 6, costPerUnit: 350, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
-      { name: "Turkish Tea", unit: "kg", currentStock: 1, parLevel: 0.5, reorderQty: 1, costPerUnit: 3000, category: "dry_pantry", supplier: "Beverage Distributor" },
-      { name: "Sparkling Water", unit: "bottles", currentStock: 48, parLevel: 24, reorderQty: 48, costPerUnit: 80, category: "dry_pantry", supplier: "Beverage Distributor" },
-      { name: "Sugar", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 5, costPerUnit: 150, category: "dry_pantry", supplier: "Bakery & Dry Goods" },
+      // Proteins — short shelf life
+      { name: "Chicken Thighs", unit: "kg", currentStock: 18, parLevel: 15, reorderQty: 20, costPerUnit: 850, category: "proteins", supplier: "Main Meat Supplier", shelfLifeDays: 3 },
+      { name: "Lamb Meat", unit: "kg", currentStock: 10, parLevel: 8, reorderQty: 12, costPerUnit: 1800, category: "proteins", supplier: "Main Meat Supplier", shelfLifeDays: 3 },
+      { name: "Beef Doner Meat", unit: "kg", currentStock: 12, parLevel: 10, reorderQty: 15, costPerUnit: 1400, category: "proteins", supplier: "Main Meat Supplier", shelfLifeDays: 3 },
+      { name: "Ground Beef", unit: "kg", currentStock: 6, parLevel: 5, reorderQty: 8, costPerUnit: 1100, category: "proteins", supplier: "Main Meat Supplier", shelfLifeDays: 2 },
+      { name: "Falafel Mix", unit: "kg", currentStock: 4, parLevel: 3, reorderQty: 5, costPerUnit: 500, category: "proteins", supplier: "Main Meat Supplier", shelfLifeDays: 5 },
+      // Dairy — medium shelf life
+      { name: "Mozzarella", unit: "kg", currentStock: 10, parLevel: 8, reorderQty: 12, costPerUnit: 950, category: "dairy", supplier: "Fresh Produce Market", shelfLifeDays: 7 },
+      { name: "Yogurt", unit: "L", currentStock: 6, parLevel: 5, reorderQty: 10, costPerUnit: 350, category: "dairy", supplier: "Fresh Produce Market", shelfLifeDays: 10 },
+      { name: "Feta Cheese", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 4, costPerUnit: 1100, category: "dairy", supplier: "Fresh Produce Market", shelfLifeDays: 14 },
+      { name: "Halloumi", unit: "kg", currentStock: 2, parLevel: 2, reorderQty: 3, costPerUnit: 1500, category: "dairy", supplier: "Fresh Produce Market", shelfLifeDays: 14 },
+      // Produce — very short shelf life
+      { name: "Tomatoes", unit: "kg", currentStock: 10, parLevel: 8, reorderQty: 12, costPerUnit: 300, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 5 },
+      { name: "Lettuce", unit: "heads", currentStock: 12, parLevel: 10, reorderQty: 15, costPerUnit: 150, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 3 },
+      { name: "Onions", unit: "kg", currentStock: 6, parLevel: 5, reorderQty: 8, costPerUnit: 200, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 21 },
+      { name: "Garlic", unit: "kg", currentStock: 2.5, parLevel: 2, reorderQty: 3, costPerUnit: 600, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 14 },
+      { name: "Potatoes", unit: "kg", currentStock: 18, parLevel: 15, reorderQty: 20, costPerUnit: 150, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 21 },
+      { name: "Cucumbers", unit: "kg", currentStock: 5, parLevel: 4, reorderQty: 6, costPerUnit: 250, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 5 },
+      { name: "Pickled Turnips", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 4, costPerUnit: 400, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 60 },
+      { name: "Parsley", unit: "bunches", currentStock: 8, parLevel: 6, reorderQty: 10, costPerUnit: 100, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 3 },
+      { name: "Lemons", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 4, costPerUnit: 350, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 14 },
+      { name: "Mint", unit: "bunches", currentStock: 5, parLevel: 4, reorderQty: 6, costPerUnit: 120, category: "produce", supplier: "Fresh Produce Market", shelfLifeDays: 3 },
+      // Dough/Bread — short shelf life
+      { name: "Pita Bread", unit: "pcs", currentStock: 120, parLevel: 100, reorderQty: 150, costPerUnit: 25, category: "dough_bread", supplier: "Bakery & Dry Goods", shelfLifeDays: 3 },
+      { name: "Flatbread", unit: "pcs", currentStock: 80, parLevel: 60, reorderQty: 100, costPerUnit: 30, category: "dough_bread", supplier: "Bakery & Dry Goods", shelfLifeDays: 3 },
+      // Dry/Pantry — long shelf life
+      { name: "Olive Oil", unit: "L", currentStock: 6, parLevel: 5, reorderQty: 10, costPerUnit: 800, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 365 },
+      { name: "Shawarma Spice Mix", unit: "kg", currentStock: 1.2, parLevel: 1, reorderQty: 2, costPerUnit: 2000, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 180 },
+      { name: "Tahini", unit: "L", currentStock: 4, parLevel: 3, reorderQty: 5, costPerUnit: 700, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 180 },
+      { name: "Chickpeas (canned)", unit: "kg", currentStock: 5, parLevel: 4, reorderQty: 8, costPerUnit: 300, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 730 },
+      { name: "Garlic Sauce", unit: "L", currentStock: 3, parLevel: 2, reorderQty: 5, costPerUnit: 500, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 7 },
+      { name: "Hot Sauce", unit: "L", currentStock: 2, parLevel: 1.5, reorderQty: 3, costPerUnit: 600, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 90 },
+      { name: "French Fry Oil", unit: "L", currentStock: 15, parLevel: 10, reorderQty: 20, costPerUnit: 250, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 180 },
+      { name: "Rice", unit: "kg", currentStock: 8, parLevel: 5, reorderQty: 10, costPerUnit: 200, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 365 },
+      { name: "Tomato Sauce", unit: "L", currentStock: 4, parLevel: 3, reorderQty: 6, costPerUnit: 350, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 180 },
+      { name: "Turkish Tea", unit: "kg", currentStock: 1, parLevel: 0.5, reorderQty: 1, costPerUnit: 3000, category: "dry_pantry", supplier: "Beverage Distributor", shelfLifeDays: 365 },
+      { name: "Sparkling Water", unit: "bottles", currentStock: 48, parLevel: 24, reorderQty: 48, costPerUnit: 80, category: "dry_pantry", supplier: "Beverage Distributor", shelfLifeDays: 365 },
+      { name: "Sugar", unit: "kg", currentStock: 3, parLevel: 2, reorderQty: 5, costPerUnit: 150, category: "dry_pantry", supplier: "Bakery & Dry Goods", shelfLifeDays: 730 },
     ];
     for (const item of ingredients) {
-      const { supplier, ...data } = item;
-      ing[item.name] = await ctx.db.insert("im_ingredients", { ...data, supplierId: sup[supplier], isActive: true });
+      const { supplier, shelfLifeDays, ...data } = item;
+      // Set initial expiry based on shelf life
+      const expiryDate = Date.now() + shelfLifeDays * 24 * 60 * 60 * 1000;
+      ing[item.name] = await ctx.db.insert("im_ingredients", {
+        ...data,
+        shelfLifeDays,
+        expiryDate,
+        supplierId: sup[supplier],
+        isActive: true,
+      });
     }
 
     // ─── 3. Look up partner's menu items ───
@@ -233,6 +247,21 @@ export const run = internalMutation({
     await ctx.db.insert("im_systemSettings", { key: "dayMultipliers", value: JSON.stringify({ 0: 0.7, 1: 0.8, 2: 0.85, 3: 0.9, 4: 1.0, 5: 1.6, 6: 1.5 }) });
     await ctx.db.insert("im_systemSettings", { key: "alpha", value: JSON.stringify(0.4) });
     await ctx.db.insert("im_systemSettings", { key: "restaurantName", value: JSON.stringify("Jakob's Kitchen") });
+    await ctx.db.insert("im_systemSettings", { key: "wasteReasons", value: JSON.stringify([
+      { key: "expired", label: "Expired" },
+      { key: "overcooked", label: "Overcooked" },
+      { key: "customer_return", label: "Customer Return" },
+      { key: "spillage", label: "Spillage" },
+      { key: "contaminated", label: "Contaminated" },
+      { key: "other", label: "Other" },
+    ]) });
+
+    // ─── 7. Trigger reorder scan for all ingredients below par ───
+    for (const [, ingredientId] of Object.entries(ing)) {
+      await ctx.runMutation(internal.im_reorders.checkAndCreateReorder, {
+        ingredientId,
+      });
+    }
 
     return "Seeded successfully";
   },

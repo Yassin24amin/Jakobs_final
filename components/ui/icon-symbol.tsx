@@ -18,6 +18,23 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  // Dashboard icons
+  'cart.fill': 'shopping-cart',
+  'list.bullet': 'list',
+  'exclamationmark.triangle.fill': 'warning',
+  'checkmark.circle.fill': 'check-circle',
+  'xmark.circle.fill': 'cancel',
+  'plus': 'add',
+  'minus': 'remove',
+  'bag.fill': 'shopping-bag',
+  'gearshape.fill': 'settings',
+  'arrow.clockwise': 'refresh',
+  'bell.fill': 'notifications',
+  'tray.full.fill': 'inbox',
+  'magnifyingglass': 'search',
+  'xmark': 'close',
+  'note.text': 'note-add',
+  'square.grid.2x2.fill': 'grid-view',
 } as IconMapping;
 
 /**
