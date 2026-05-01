@@ -77,7 +77,6 @@ export const getDayMultipliersQuery = query({
   },
 });
 
-/** Get all stock level settings for the settings UI. */
 /** Get waste reasons from settings, or return defaults. */
 export const getWasteReasons = query({
   args: {},

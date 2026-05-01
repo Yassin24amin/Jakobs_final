@@ -64,10 +64,10 @@ export const computePrepSheet = query({
     // 3. Compare against current stock → compute shortfalls
     // Build a lookup map of all ingredients to avoid N+1 queries
     const allIngredients = await ctx.db.query("im_ingredients").take(200);
-    const ingredientMap = new Map(allIngredients.map((i) => [i.name, i]));
+    const ingredientMap = new Map(allIngredients.map((i) => [i._id as string, i]));
 
     const ingredientReport = Object.values(ingredientNeeds).map((need) => {
-      const ingredient = ingredientMap.get(need.name);
+      const ingredient = ingredientMap.get(need.ingredientId);
       const isExpired =
         ingredient?.expiryDate && ingredient.expiryDate <= Date.now();
       const currentStock = isExpired ? 0 : (ingredient?.currentStock ?? 0);

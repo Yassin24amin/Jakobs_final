@@ -14,7 +14,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
-const DEFAULT_WASTE_REASONS = [
+const ALLOWED_REASONS = ["expired", "overcooked", "customer_return", "spillage", "contaminated", "other"] as const;
+type WasteReason = (typeof ALLOWED_REASONS)[number];
+
+const DEFAULT_WASTE_REASONS: { key: WasteReason; label: string }[] = [
   { key: "expired", label: "Expired" },
   { key: "overcooked", label: "Overcooked" },
   { key: "customer_return", label: "Customer Return" },
@@ -23,15 +26,15 @@ const DEFAULT_WASTE_REASONS = [
   { key: "other", label: "Other" },
 ];
 
-type WasteReason = string;
-
 export default function WasteScreen() {
   const ingredients = useQuery(api["im_ingredients"].list);
   const menuItems = useQuery(api.im_menu.listAll);
   const todayWaste = useQuery(api.im_waste.todaySummary);
   const recentWaste = useQuery(api.im_waste.listRecent);
   const wasteReasonsQuery = useQuery(api.im_settings.getWasteReasons);
-  const WASTE_REASONS = wasteReasonsQuery ?? DEFAULT_WASTE_REASONS;
+  const WASTE_REASONS = (wasteReasonsQuery ?? DEFAULT_WASTE_REASONS).filter(
+    (r: any) => (ALLOWED_REASONS as readonly string[]).includes(r.key)
+  );
   const reportIngredient = useMutation(api.im_waste.reportIngredientWaste);
   const reportMenuItem = useMutation(api.im_waste.reportMenuItemWaste);
 

@@ -51,7 +51,7 @@ export function QuantityAdjuster({
 
   const handleBulkSubmit = () => {
     const num = parseFloat(bulkValue);
-    if (!isNaN(num) && onSetValue) {
+    if (Number.isFinite(num) && num >= 0 && onSetValue) {
       onSetValue(num);
     }
     setShowBulkInput(false);

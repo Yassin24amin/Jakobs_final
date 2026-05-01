@@ -6,7 +6,7 @@ import { useResponsive } from "@/hooks/use-responsive";
 import { Doc } from "@/convex/_generated/dataModel";
 
 interface InventoryRowProps {
-  item: Doc<"im_ingredients">;
+  item: Doc<"im_ingredients"> & { portionStep: number };
   onAdjust: (id: string, delta: number) => void;
   onSetQty: (id: string, qty: number) => void;
 }
@@ -18,7 +18,8 @@ interface InventoryRowProps {
 export function InventoryRow({ item, onAdjust, onSetQty }: InventoryRowProps) {
   const { isPhone } = useResponsive();
   const stockColor = getStockColor(item.currentStock, item.parLevel);
-  const stockPct = item.parLevel > 0 ? item.currentStock / item.parLevel : 1;
+  const stockPct = Math.max(0, Math.min(1, item.parLevel > 0 ? item.currentStock / item.parLevel : 1));
+  const step = item.portionStep;
 
   if (isPhone) {
     return (
@@ -34,6 +35,9 @@ export function InventoryRow({ item, onAdjust, onSetQty }: InventoryRowProps) {
               par: {item.parLevel}
             </Text>
           </View>
+          <Text style={styles.stepText}>
+            per portion: {step} {item.unit}
+          </Text>
           {/* Mini par bar */}
           <View style={styles.parBarBg}>
             <View
@@ -50,8 +54,8 @@ export function InventoryRow({ item, onAdjust, onSetQty }: InventoryRowProps) {
         <QuantityAdjuster
           value={item.currentStock}
           unit={item.unit}
-          onIncrement={() => onAdjust(item._id, 1)}
-          onDecrement={() => onAdjust(item._id, -1)}
+          onIncrement={() => onAdjust(item._id, step)}
+          onDecrement={() => onAdjust(item._id, -step)}
           onSetValue={(v) => onSetQty(item._id, v)}
         />
       </View>
@@ -63,7 +67,10 @@ export function InventoryRow({ item, onAdjust, onSetQty }: InventoryRowProps) {
     <View style={styles.tabletRow}>
       <View style={[styles.tabletCell, { flex: 2.5 }]}>
         <View style={[styles.stockDot, { backgroundColor: stockColor }]} />
-        <Text style={styles.itemName}>{item.name}</Text>
+        <View>
+          <Text style={styles.itemName}>{item.name}</Text>
+          <Text style={styles.stepText}>{step} {item.unit}/portion</Text>
+        </View>
       </View>
       <Text style={[styles.tabletVal, { color: stockColor, fontWeight: "700", flex: 1 }]}>
         {item.currentStock}
@@ -86,8 +93,8 @@ export function InventoryRow({ item, onAdjust, onSetQty }: InventoryRowProps) {
       <View style={{ flex: 1.5 }}>
         <QuantityAdjuster
           value={item.currentStock}
-          onIncrement={() => onAdjust(item._id, 1)}
-          onDecrement={() => onAdjust(item._id, -1)}
+          onIncrement={() => onAdjust(item._id, step)}
+          onDecrement={() => onAdjust(item._id, -step)}
           onSetValue={(v) => onSetQty(item._id, v)}
         />
       </View>
@@ -134,6 +141,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   itemName: { fontSize: 15, fontWeight: "600", color: "#11181C" },
+  stepText: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
   stockDot: { width: 10, height: 10, borderRadius: 5 },
   qtyText: { fontSize: 15, fontWeight: "600" },
   parText: { fontSize: 13, color: "#9CA3AF" },

@@ -199,7 +199,21 @@ export const checkExpiry = internalMutation({
         const hasPending = existingReorders.some(
           (r) => r.status === "suggested" || r.status === "approved" || r.status === "ordered"
         );
-        if (!hasPending) {
+        if (hasPending) {
+          // Escalate any suggested/approved reorders to "ordered" with expiry reason
+          const suggestedOrApproved = existingReorders.filter(
+            (r) => r.status === "suggested" || r.status === "approved"
+          );
+          const expiryDateStr = new Date(ingredient.expiryDate).toLocaleDateString();
+          for (const reorder of suggestedOrApproved) {
+            await ctx.db.patch(reorder._id, {
+              status: "ordered",
+              trigger: "expiry",
+              reason: `Expired: ${expiredQty} ${ingredient.unit} expired on ${expiryDateStr} and was discarded. Stock is now 0. Auto-escalated to ordered.`,
+              updatedAt: now,
+            });
+          }
+        } else {
           // Smart qty calc
           const recipeLinks = await ctx.db
             .query("im_recipes")

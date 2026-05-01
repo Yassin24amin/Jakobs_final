@@ -12,8 +12,13 @@ import { useResponsive } from "@/hooks/use-responsive";
 import { DashboardColors } from "@/constants/dashboard-theme";
 
 export default function PrepScreen() {
+  const todayTs = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
   const prepSheet = useQuery(api["im_forecast"].prepSheet.computePrepSheet, {
-    dateTs: Date.now(),
+    dateTs: todayTs,
   });
   const { isPhone } = useResponsive();
 
@@ -38,7 +43,7 @@ export default function PrepScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>
-          {prepSheet.dayName}'s Prep
+          {`${prepSheet.dayName}'s Prep`}
         </Text>
         <Text style={styles.headerSub}>
           {prepSheet.date} · {prepSheet.multiplier}x demand
@@ -49,9 +54,7 @@ export default function PrepScreen() {
       {prepSheet.shortfallCount > 0 && (
         <View style={styles.alertBanner}>
           <Text style={styles.alertText}>
-            {prepSheet.shortfallCount} ingredient
-            {prepSheet.shortfallCount !== 1 ? "s" : ""} short for today's
-            forecast
+            {`${prepSheet.shortfallCount} ingredient${prepSheet.shortfallCount !== 1 ? "s" : ""} short for today's forecast`}
           </Text>
         </View>
       )}

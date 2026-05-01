@@ -144,7 +144,16 @@ function ReorderSection() {
           {r.supplierId && (() => {
             const sup = suppliers?.find((s) => s._id === r.supplierId);
             if (!sup) return null;
-            const method = sup.preferredContact ?? (sup.phone ? "phone" : sup.whatsapp ? "whatsapp" : "email");
+            const getValidMethod = (s: any) => {
+              if (s.preferredContact === "whatsapp" && s.whatsapp) return "whatsapp";
+              if (s.preferredContact === "email" && s.email) return "email";
+              if (s.preferredContact === "phone" && s.phone) return "phone";
+              if (s.phone) return "phone";
+              if (s.whatsapp) return "whatsapp";
+              if (s.email) return "email";
+              return "phone";
+            };
+            const method = getValidMethod(sup);
             const buildMsg = () => {
               const orderLine = `\n\nOrder: ${r.quantity} ${r.unit} of ${r.ingredientName}`;
               if (sup.orderMessageTemplate) {
@@ -260,7 +269,6 @@ const CONTACT_METHODS = [
 function ThresholdSection() {
   const ingredients = useQuery(api["im_ingredients"].list);
   const allSuppliers = useQuery(api.im_suppliers.list);
-  const updateThresholds = useMutation(api.im_reorders.updateThresholds);
   const updateIngredient = useMutation(api["im_ingredients"].update);
   const updateSupplier = useMutation(api.im_suppliers.update);
   const [editing, setEditing] = useState<string | null>(null);
@@ -291,25 +299,19 @@ function ThresholdSection() {
       return Alert.alert("Error", "Par level and reorder quantity must be greater than 0");
     }
     try {
-      await updateThresholds({
-        ingredientId: editing as any,
+      await updateIngredient({
+        id: editing as any,
         parLevel: parseFloat(editPar) || 0,
         reorderQty: parseFloat(editReorder) || 0,
+        shelfLifeDays: editShelfLife ? parseFloat(editShelfLife) : 0,
       });
-      const shelfDays = parseFloat(editShelfLife);
-      if (shelfDays > 0) {
-        await updateIngredient({
-          id: editing as any,
-          shelfLifeDays: shelfDays,
-        });
-      }
       // Save supplier preferred contact + message template
       const ing = ingredients?.find((i) => i._id === editing);
       if (ing?.supplierId) {
         await updateSupplier({
           id: ing.supplierId,
           preferredContact: editContact as any,
-          ...(editTemplate ? { orderMessageTemplate: editTemplate } : {}),
+          orderMessageTemplate: editTemplate || undefined,
         });
       }
       setEditing(null);

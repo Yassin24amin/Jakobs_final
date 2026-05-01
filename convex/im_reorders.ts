@@ -212,6 +212,7 @@ export const checkAndCreateReorder = internalMutation({
 
     // Critical = ALWAYS create a reorder. If there's only a "suggested" one, upgrade it.
     if (isCritical && hasPending) {
+      if (existing.some((r) => r.status === "ordered")) return;
       const suggestedOrApproved = existing.find((r) => r.status === "suggested" || r.status === "approved");
       if (suggestedOrApproved) {
         // Auto-upgrade to ordered

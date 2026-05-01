@@ -5,10 +5,46 @@ import { internal } from "./_generated/api";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    return await ctx.db
+    const ingredients = await ctx.db
       .query("im_ingredients")
       .withIndex("by_name")
       .take(200);
+
+    // Enrich each ingredient with its portion step size from recipes
+    const enriched = await Promise.all(
+      ingredients.map(async (ing) => {
+        const recipes = await ctx.db
+          .query("im_recipes")
+          .withIndex("by_ingredientId", (q) => q.eq("ingredientId", ing._id))
+          .take(20);
+
+        // Use the most common (mode) recipe quantity as the step size
+        // If no recipes, default to 1
+        let portionStep = 1;
+        if (recipes.length > 0) {
+          // Find the most frequently used quantity
+          const qtyCounts: Record<number, number> = {};
+          for (const r of recipes) {
+            const qty = Math.round(r.quantityNeeded * 1000) / 1000;
+            qtyCounts[qty] = (qtyCounts[qty] ?? 0) + 1;
+          }
+          // Pick the most common, or if all unique, use the smallest
+          let maxCount = 0;
+          let modeQty = recipes[0].quantityNeeded;
+          for (const [qty, count] of Object.entries(qtyCounts)) {
+            if (count > maxCount || (count === maxCount && Number(qty) < modeQty)) {
+              maxCount = count;
+              modeQty = Number(qty);
+            }
+          }
+          portionStep = modeQty;
+        }
+
+        return { ...ing, portionStep };
+      })
+    );
+
+    return enriched;
   },
 });
 
