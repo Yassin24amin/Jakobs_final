@@ -34,7 +34,14 @@ export const update = mutation({
     name: v.optional(v.string()),
     phone: v.optional(v.string()),
     email: v.optional(v.string()),
+    whatsapp: v.optional(v.string()),
+    preferredContact: v.optional(v.union(
+      v.literal("phone"),
+      v.literal("email"),
+      v.literal("whatsapp")
+    )),
     deliveryDays: v.optional(v.array(v.number())),
+    orderMessageTemplate: v.optional(v.string()),
     notes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {

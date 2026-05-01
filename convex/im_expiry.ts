@@ -113,7 +113,7 @@ export const calculateSmartReorderQty = query({
         let minDays = 7;
         for (const day of supplier.deliveryDays) {
           let diff = day - today;
-          if (diff <= 0) diff += 7; // next week
+          if (diff < 0) diff += 7; // next week
           if (diff < minDays) minDays = diff;
         }
         daysUntilDelivery = minDays;
@@ -186,13 +186,72 @@ export const checkExpiry = internalMutation({
           reportedAt: now,
         });
 
+        const expiredQty = ingredient.currentStock;
+
         // Zero out stock
         await ctx.db.patch(ingredient._id, { currentStock: 0 });
 
-        // Trigger reorder (will create urgent/approved)
-        await ctx.runMutation(internal.im_reorders.checkAndCreateReorder, {
-          ingredientId: ingredient._id,
-        });
+        // Create urgent reorder with expiry reason (skip checkAndCreateReorder to get correct reason)
+        const existingReorders = await ctx.db
+          .query("im_reorders")
+          .withIndex("by_ingredientId", (q) => q.eq("ingredientId", ingredient._id))
+          .take(10);
+        const hasPending = existingReorders.some(
+          (r) => r.status === "suggested" || r.status === "approved" || r.status === "ordered"
+        );
+        if (!hasPending) {
+          // Smart qty calc
+          const recipeLinks = await ctx.db
+            .query("im_recipes")
+            .withIndex("by_ingredientId", (q) => q.eq("ingredientId", ingredient._id))
+            .take(50);
+          const multipliers = await getDayMultipliers(ctx);
+          const avgMultiplier = Object.values(multipliers).reduce((a, b) => a + b, 0) / 7;
+          let dailyConsumption = 0;
+          for (const link of recipeLinks) {
+            const profile = await ctx.db
+              .query("im_demandProfiles")
+              .withIndex("by_menuItemId", (q) => q.eq("menuItemId", link.menuItemId))
+              .unique();
+            if (profile) dailyConsumption += profile.baseline * avgMultiplier * link.quantityNeeded;
+          }
+          let daysUntilDelivery = 7;
+          if (ingredient.supplierId) {
+            const sup = await ctx.db.get(ingredient.supplierId);
+            if (sup && sup.deliveryDays.length > 0) {
+              const today = new Date().getDay();
+              let minDays = 7;
+              for (const day of sup.deliveryDays) {
+                let diff = day - today;
+                if (diff < 0) diff += 7;
+                if (diff < minDays) minDays = diff;
+              }
+              daysUntilDelivery = minDays;
+            }
+          }
+          const smartQty = Math.max(
+            ingredient.reorderQty,
+            Math.ceil(dailyConsumption * daysUntilDelivery + ingredient.parLevel)
+          );
+          const sup = ingredient.supplierId ? await ctx.db.get(ingredient.supplierId) : null;
+
+          const expiryDateStr = new Date(ingredient.expiryDate).toLocaleDateString();
+          const noRecipesNote = recipeLinks.length === 0 ? " No menu items use this ingredient." : "";
+          await ctx.db.insert("im_reorders", {
+            ingredientId: ingredient._id,
+            ingredientName: ingredient.name,
+            supplierId: ingredient.supplierId,
+            supplierName: sup?.name,
+            quantity: smartQty,
+            unit: ingredient.unit,
+            status: "ordered",
+            trigger: "expiry",
+            reason: `Expired: ${expiredQty} ${ingredient.unit} expired on ${expiryDateStr} and was discarded. Stock is now 0. Auto-ordered.${noRecipesNote}`,
+            estimatedCost: smartQty * ingredient.costPerUnit,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
       } else if (ingredient.expiryDate <= twoDaysOut) {
         // ─── EXPIRING SOON: smart reorder suggestion ───
 
@@ -237,7 +296,7 @@ export const checkExpiry = internalMutation({
             let minDays = 7;
             for (const day of supplier.deliveryDays) {
               let diff = day - today;
-              if (diff <= 0) diff += 7;
+              if (diff < 0) diff += 7;
               if (diff < minDays) minDays = diff;
             }
             daysUntilDelivery = minDays;
@@ -257,6 +316,9 @@ export const checkExpiry = internalMutation({
           (ingredient.expiryDate - now) / (24 * 60 * 60 * 1000)
         );
 
+        const expiryDateStr = new Date(ingredient.expiryDate).toLocaleDateString();
+        const noRecipesNote = recipeLinks.length === 0 ? " No menu items use this ingredient." : "";
+
         await ctx.db.insert("im_reorders", {
           ingredientId: ingredient._id,
           ingredientName: ingredient.name,
@@ -265,7 +327,8 @@ export const checkExpiry = internalMutation({
           quantity: smartQty,
           unit: ingredient.unit,
           status: "suggested",
-          trigger: "low",
+          trigger: "expiry",
+          reason: `Expires soon: ${ingredient.currentStock} ${ingredient.unit} expires on ${expiryDateStr} (${daysLeft} day${daysLeft !== 1 ? "s" : ""} left).${noRecipesNote}`,
           estimatedCost: smartQty * ingredient.costPerUnit,
           createdAt: now,
           updatedAt: now,
