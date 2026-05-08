@@ -35,19 +35,28 @@ export const reportIngredientWaste = mutation({
       const ingredient = await ctx.db.get(item.ingredientId);
       if (!ingredient) continue;
 
-      const costCents = Math.round(item.quantity * ingredient.costPerUnit);
+      // Cap waste quantity to available stock
+      let wasteQty = item.quantity;
+      let note: string | undefined;
+      if (wasteQty > ingredient.currentStock) {
+        note = `Capped from ${wasteQty} to ${ingredient.currentStock} (insufficient stock)`;
+        wasteQty = ingredient.currentStock;
+      }
+
+      const costCents = Math.round(wasteQty * ingredient.costPerUnit);
       totalCost += costCents;
 
       wasteItems.push({
         ingredientId: item.ingredientId,
         ingredientName: ingredient.name,
-        quantity: item.quantity,
+        quantity: wasteQty,
         unit: ingredient.unit,
         costCents,
+        ...(note ? { note } : {}),
       });
 
       // Deduct from stock
-      const newStock = Math.max(0, ingredient.currentStock - item.quantity);
+      const newStock = Math.max(0, ingredient.currentStock - wasteQty);
       await ctx.db.patch(item.ingredientId, {
         currentStock: Math.round(newStock * 1000) / 1000,
       });
@@ -115,9 +124,16 @@ export const reportMenuItemWaste = mutation({
       if (!ingredient) continue;
 
       // Use override if provided, otherwise recipe qty × menu item qty
-      const wasteQty = overrideMap.has(link.ingredientId)
+      let wasteQty = overrideMap.has(link.ingredientId)
         ? overrideMap.get(link.ingredientId)!
         : link.quantityNeeded * args.menuItemQty;
+
+      // Cap waste quantity to available stock
+      let note: string | undefined;
+      if (wasteQty > ingredient.currentStock) {
+        note = `Capped from ${Math.round(wasteQty * 1000) / 1000} to ${ingredient.currentStock} (insufficient stock)`;
+        wasteQty = ingredient.currentStock;
+      }
 
       const costCents = Math.round(wasteQty * ingredient.costPerUnit);
       totalCost += costCents;
@@ -128,6 +144,7 @@ export const reportMenuItemWaste = mutation({
         quantity: Math.round(wasteQty * 1000) / 1000,
         unit: ingredient.unit,
         costCents,
+        ...(note ? { note } : {}),
       });
 
       // Deduct from stock
@@ -208,12 +225,11 @@ export const listRecent = query({
 export const todaySummary = query({
   args: {},
   handler: async (ctx) => {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const last24h = Date.now() - 24 * 60 * 60 * 1000;
 
     const logs = await ctx.db
       .query("im_wasteLog")
-      .withIndex("by_reportedAt", (q) => q.gte("reportedAt", startOfDay.getTime()))
+      .withIndex("by_reportedAt", (q) => q.gte("reportedAt", last24h))
       .take(200);
 
     const totalCost = logs.reduce((sum, l) => sum + l.totalCostCents, 0);

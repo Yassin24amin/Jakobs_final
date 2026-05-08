@@ -23,6 +23,14 @@ const MAPPING = {
   'doc.text.fill': 'receipt',
   'person.fill': 'person',
   'pencil': 'edit',
+  'archivebox.fill': 'inventory-2',
+  'exclamationmark.triangle.fill': 'warning',
+  'bell.fill': 'notifications',
+  'minus': 'remove',
+  'plus': 'add',
+  'xmark': 'close',
+  'phone.fill': 'phone',
+  'envelope.fill': 'email',
 } as IconMapping;
 
 /**

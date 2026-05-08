@@ -9,6 +9,7 @@
  */
 
 import type * as im_crons from "../im_crons.js";
+import type * as im_expiry from "../im_expiry.js";
 import type * as im_forecast_demandProfiles from "../im_forecast/demandProfiles.js";
 import type * as im_forecast_nightlyCron from "../im_forecast/nightlyCron.js";
 import type * as im_forecast_prepSheet from "../im_forecast/prepSheet.js";
@@ -16,6 +17,7 @@ import type * as im_ingredients from "../im_ingredients.js";
 import type * as im_menu from "../im_menu.js";
 import type * as im_orders from "../im_orders.js";
 import type * as im_recipes from "../im_recipes.js";
+import type * as im_reorder_scan from "../im_reorder_scan.js";
 import type * as im_reorders from "../im_reorders.js";
 import type * as im_reseed from "../im_reseed.js";
 import type * as im_sales_salesLog from "../im_sales/salesLog.js";
@@ -41,6 +43,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   im_crons: typeof im_crons;
+  im_expiry: typeof im_expiry;
   "im_forecast/demandProfiles": typeof im_forecast_demandProfiles;
   "im_forecast/nightlyCron": typeof im_forecast_nightlyCron;
   "im_forecast/prepSheet": typeof im_forecast_prepSheet;
@@ -48,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   im_menu: typeof im_menu;
   im_orders: typeof im_orders;
   im_recipes: typeof im_recipes;
+  im_reorder_scan: typeof im_reorder_scan;
   im_reorders: typeof im_reorders;
   im_reseed: typeof im_reseed;
   "im_sales/salesLog": typeof im_sales_salesLog;

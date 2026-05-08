@@ -14,19 +14,14 @@ export const runNightlyUpdate = internalMutation({
   args: {},
   handler: async (ctx) => {
     const alpha = await getAlpha(ctx);
-    const now = new Date();
+    const now = Date.now();
 
-    // Yesterday's boundaries
-    const yesterdayStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() - 1
-    ).getTime();
-    const yesterdayEnd = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    ).getTime();
+    // Instead of midnight-to-midnight, use a rolling 24h window ending 4 hours ago.
+    // This captures a full day of sales that ended before the cron runs, regardless of timezone.
+    const windowEnd = now - 4 * 60 * 60 * 1000; // 4 hours ago (cron runs at 4AM)
+    const windowStart = windowEnd - 24 * 60 * 60 * 1000; // 28 hours ago
+    const yesterdayStart = windowStart;
+    const yesterdayEnd = windowEnd;
 
     // Fetch yesterday's sales
     const sales = await ctx.db

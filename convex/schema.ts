@@ -126,7 +126,14 @@ export default defineSchema({
     name: v.string(),
     phone: v.optional(v.string()),
     email: v.optional(v.string()),
+    whatsapp: v.optional(v.string()),
+    preferredContact: v.optional(v.union(
+      v.literal("phone"),
+      v.literal("email"),
+      v.literal("whatsapp")
+    )),
     deliveryDays: v.array(v.number()), // 0=Sun ... 6=Sat
+    orderMessageTemplate: v.optional(v.string()),
     notes: v.optional(v.string()),
   }),
 
@@ -179,8 +186,10 @@ export default defineSchema({
     trigger: v.union(
       v.literal("low"),        // stock fell below parLevel
       v.literal("critical"),   // stock fell below 50% of parLevel — auto-created
+      v.literal("expiry"),     // expires soon or already expired
       v.literal("manual")      // manager created manually
     ),
+    reason: v.optional(v.string()), // human-readable reason shown to manager
     estimatedCost: v.number(), // cents: quantity × costPerUnit
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -207,6 +216,7 @@ export default defineSchema({
         quantity: v.number(),
         unit: v.string(),
         costCents: v.number(), // quantity × costPerUnit at time of report
+        note: v.optional(v.string()), // e.g. capped qty warning
       })
     ),
     // Optional: if waste came from a whole menu item (e.g. "3 burnt shawarmas")

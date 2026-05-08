@@ -24,7 +24,24 @@ export const Colors = {
   statusReady: '#22C55E',
   statusCompleted: '#6B7280',
   statusCancelled: '#EF4444',
+  // Stock level colors (inventory)
+  stockHealthy: '#22C55E',
+  stockWarning: '#FBBF24',
+  stockCritical: '#EF4444',
 } as const;
+
+/** Returns the appropriate stock-level color for an ingredient. */
+export function getStockColor(
+  currentStock: number,
+  parLevel: number,
+  criticalPct = 0.4
+): string {
+  if (parLevel <= 0) return Colors.stockHealthy;
+  const ratio = currentStock / parLevel;
+  if (ratio <= criticalPct) return Colors.stockCritical;
+  if (ratio <= 1.0) return Colors.stockWarning;
+  return Colors.stockHealthy;
+}
 
 export const Fonts = {
   display: 'Oswald_700Bold',

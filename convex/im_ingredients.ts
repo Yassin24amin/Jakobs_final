@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 export const list = query({
   args: {},
@@ -40,10 +41,15 @@ export const create = mutation({
     supplierId: v.optional(v.id("im_suppliers")),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("im_ingredients", {
+    const id = await ctx.db.insert("im_ingredients", {
       ...args,
       isActive: true,
     });
+    // Check reorder immediately if created below par
+    await ctx.runMutation(internal.im_reorders.checkAndCreateReorder, {
+      ingredientId: id,
+    });
+    return id;
   },
 });
 
@@ -68,6 +74,10 @@ export const update = mutation({
       if (value !== undefined) updates[key] = value;
     }
     await ctx.db.patch(id, updates);
+    // If parLevel changed, stock might now be below par
+    await ctx.runMutation(internal.im_reorders.checkAndCreateReorder, {
+      ingredientId: id,
+    });
   },
 });
 
@@ -81,6 +91,10 @@ export const adjustStock = mutation({
     if (!item) throw new Error("Ingredient not found");
     const newStock = Math.max(0, item.currentStock + args.delta);
     await ctx.db.patch(args.id, { currentStock: newStock });
+    // Immediately check if reorder needed
+    await ctx.runMutation(internal.im_reorders.checkAndCreateReorder, {
+      ingredientId: args.id,
+    });
   },
 });
 
@@ -92,6 +106,10 @@ export const setStock = mutation({
   handler: async (ctx, args) => {
     await ctx.db.patch(args.id, {
       currentStock: Math.max(0, args.newStock),
+    });
+    // Immediately check if reorder needed
+    await ctx.runMutation(internal.im_reorders.checkAndCreateReorder, {
+      ingredientId: args.id,
     });
   },
 });

@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
-import { Tabs, useRouter } from 'expo-router';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors, Fonts, FontSizes } from '@/constants/theme';
-import { useAuth } from '@/contexts/auth-context';
-import { ActivityIndicator, View, Pressable, Text } from 'react-native';
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Colors, Fonts, FontSizes } from "@/constants/theme";
+import { useAuth } from "@/contexts/auth-context";
+import { Tabs, useRouter } from "expo-router";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
 
 export default function AdminLayout() {
   const { isAdmin, isLoading, isAuthenticated } = useAuth();
@@ -11,13 +11,20 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || !isAdmin)) {
-      router.replace('/(customer)');
+      router.replace("/(customer)");
     }
   }, [isLoading, isAuthenticated, isAdmin, router]);
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: Colors.background,
+        }}
+      >
         <ActivityIndicator color={Colors.accent} size="large" />
       </View>
     );
@@ -41,7 +48,7 @@ export default function AdminLayout() {
         tabBarLabelStyle: {
           fontFamily: Fonts.mono,
           fontSize: FontSizes.xs,
-          textTransform: 'uppercase',
+          textTransform: "uppercase",
           letterSpacing: 1,
         },
       }}
@@ -49,15 +56,28 @@ export default function AdminLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'ORDERS',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="doc.text.fill" color={color} />,
+          title: "ORDERS",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="doc.text.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="menu-editor"
         options={{
-          title: 'MENU',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="pencil" color={color} />,
+          title: "MENU",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="pencil" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="inventory"
+        options={{
+          title: "INVENTORY",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="archivebox.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen

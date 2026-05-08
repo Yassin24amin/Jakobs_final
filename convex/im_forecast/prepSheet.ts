@@ -62,23 +62,24 @@ export const computePrepSheet = query({
     }
 
     // 3. Compare against current stock → compute shortfalls
-    const ingredientReport = await Promise.all(
-      Object.values(ingredientNeeds).map(async (need) => {
-        const ingredient = await ctx.db
-          .query("im_ingredients")
-          .withIndex("by_name", (q) => q.eq("name", need.name))
-          .unique();
-        const currentStock = ingredient?.currentStock ?? 0;
-        const shortfall = Math.max(0, need.totalNeeded - currentStock);
-        return {
-          ...need,
-          totalNeeded: Math.round(need.totalNeeded * 100) / 100,
-          currentStock,
-          shortfall: Math.round(shortfall * 100) / 100,
-          isShort: shortfall > 0,
-        };
-      })
-    );
+    // Build a lookup map of all ingredients to avoid N+1 queries
+    const allIngredients = await ctx.db.query("im_ingredients").take(200);
+    const ingredientMap = new Map(allIngredients.map((i) => [i.name, i]));
+
+    const ingredientReport = Object.values(ingredientNeeds).map((need) => {
+      const ingredient = ingredientMap.get(need.name);
+      const isExpired =
+        ingredient?.expiryDate && ingredient.expiryDate <= Date.now();
+      const currentStock = isExpired ? 0 : (ingredient?.currentStock ?? 0);
+      const shortfall = Math.max(0, need.totalNeeded - currentStock);
+      return {
+        ...need,
+        totalNeeded: Math.round(need.totalNeeded * 100) / 100,
+        currentStock,
+        shortfall: Math.round(shortfall * 100) / 100,
+        isShort: shortfall > 0,
+      };
+    });
 
     // 4. Get prep recipes
     const prepRecipes = await ctx.db.query("im_prepRecipes").take(50);
