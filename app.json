@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mawlicious.Jakobs-final"
+      "bundleIdentifier": "com.mawlicious.Jakobs-final",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,6 +33,14 @@
     "plugins": [
       "expo-router",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
@@ -41,11 +52,24 @@
           }
         }
       ],
+      "@clerk/expo",
       "expo-secure-store",
       "expo-font",
       "expo-image",
       "expo-web-browser",
-      "expo-dev-client"
+      "expo-dev-client",
+      [
+        "@stripe/stripe-terminal-react-native",
+        {
+          "bluetoothBackgroundMode": true,
+          "locationWhenInUsePermission": "Allow Jakob's to use your location to accept Tap to Pay payments.",
+          "bluetoothPeripheralPermission": "Allow Jakob's to use Bluetooth to accept Tap to Pay payments.",
+          "bluetoothAlwaysUsagePermission": "Allow Jakob's to keep Bluetooth access for supported payment readers.",
+          "localNetworkUsagePermission": "Allow Jakob's to access the local network for supported payment readers.",
+          "tapToPayCheck": true
+        }
+      ],
+      "./plugins/with-tap-to-pay-entitlement"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -14,6 +14,7 @@ import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Colors, Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { formatDate } from '@/utils/format-date';
+import { getPaymentMethodLabel } from '@/utils/payment-method';
 
 type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 
@@ -128,7 +129,7 @@ export default function AdminOrderDetailScreen() {
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>PAYMENT</Text>
-            <Text style={styles.infoValue}>{order.paymentMethod.toUpperCase()}</Text>
+            <Text style={styles.infoValue}>{getPaymentMethodLabel(order.paymentMethod)}</Text>
           </View>
           {order.deliveryAddress && (
             <View style={styles.infoRow}>

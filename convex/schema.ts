@@ -53,7 +53,9 @@ export default defineSchema({
     paymentMethod: v.union(
       v.literal("card"),
       v.literal("cash"),
-      v.literal("sumup_terminal")
+      v.literal("sumup_terminal"),
+      v.literal("stripe_tap_to_pay_iphone"),
+      v.literal("stripe_tap_to_pay_android")
     ),
     paymentStatus: v.union(
       v.literal("pending"),
@@ -94,6 +96,87 @@ export default defineSchema({
   })
     .index("by_email", ["email"])
     .index("by_tokenIdentifier", ["tokenIdentifier"]),
+
+  posDevices: defineTable({
+    deviceInstanceId: v.string(),
+    name: v.string(),
+    platform: v.union(
+      v.literal("ipad"),
+      v.literal("iphone"),
+      v.literal("android")
+    ),
+    role: v.union(v.literal("register"), v.literal("tap_to_pay_companion")),
+    pairedDeviceInstanceId: v.optional(v.string()),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_deviceInstanceId", ["deviceInstanceId"])
+    .index("by_role", ["role"])
+    .index("by_pairedDeviceInstanceId", ["pairedDeviceInstanceId"]),
+
+  posDevicePresence: defineTable({
+    deviceInstanceId: v.string(),
+    status: v.union(
+      v.literal("offline"),
+      v.literal("register_ready"),
+      v.literal("companion_ready"),
+      v.literal("busy"),
+      v.literal("reconnecting")
+    ),
+    currentPaymentRequestId: v.optional(v.id("posPaymentRequests")),
+    lastSeenAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_deviceInstanceId", ["deviceInstanceId"])
+    .index("by_status", ["status"]),
+
+  posPaymentRequests: defineTable({
+    registerDeviceInstanceId: v.string(),
+    companionDeviceInstanceId: v.string(),
+    operatorUserId: v.id("users"),
+    customerName: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    items: v.array(
+      v.object({
+        menuItemId: v.id("menuItems"),
+        name: v.string(),
+        price: v.number(),
+        quantity: v.number(),
+        notes: v.optional(v.string()),
+      })
+    ),
+    total: v.number(),
+    status: v.union(
+      v.literal("created"),
+      v.literal("claimed"),
+      v.literal("reader_ready"),
+      v.literal("waiting_for_tap"),
+      v.literal("processing"),
+      v.literal("succeeded"),
+      v.literal("failed"),
+      v.literal("canceled"),
+      v.literal("expired")
+    ),
+    stripePaymentIntentId: v.optional(v.string()),
+    stripePaymentIntentClientSecret: v.optional(v.string()),
+    createdOrderId: v.optional(v.id("orders")),
+    createdOrderNumber: v.optional(v.string()),
+    failureCode: v.optional(v.string()),
+    failureMessage: v.optional(v.string()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_companionDeviceInstanceId_and_createdAt", [
+      "companionDeviceInstanceId",
+      "createdAt",
+    ])
+    .index("by_registerDeviceInstanceId_and_createdAt", [
+      "registerDeviceInstanceId",
+      "createdAt",
+    ])
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
 
   // ─── Inventory Management (im_* files) ───
 

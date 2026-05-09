@@ -14,6 +14,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import { Id } from '@/convex/_generated/dataModel';
 import { Colors, Fonts, FontSizes, Spacing } from '@/constants/theme';
+import { getPaymentMethodLabel } from '@/utils/payment-method';
 
 type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 type FilterTab = 'all' | OrderStatus;
@@ -227,7 +228,7 @@ function OrderCard({ order }: { order: any }) {
           <Text style={styles.statusBadgeText}>{order.status.toUpperCase()}</Text>
         </View>
         <Text style={styles.fulfillmentText}>
-          {order.fulfillmentType.toUpperCase()} {'\u00B7'} {order.paymentMethod.toUpperCase()}
+          {order.fulfillmentType.toUpperCase()} {'\u00B7'} {getPaymentMethodLabel(order.paymentMethod)}
         </Text>
       </View>
 

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id, Doc } from "@/convex/_generated/dataModel";
+import { getPaymentMethodLabel } from "@/utils/payment-method";
 import {
   POSColors,
   POSFonts,
@@ -79,13 +80,7 @@ export default function POSReceiptScreen() {
         </View>
 
         {/* Payment */}
-        <Text style={styles.paymentMethod}>
-          {order.paymentMethod === "cash"
-            ? "CASH"
-            : order.paymentMethod === "sumup_terminal"
-              ? "CARD (SUMUP)"
-              : "CARD"}
-        </Text>
+        <Text style={styles.paymentMethod}>{getPaymentMethodLabel(order.paymentMethod)}</Text>
         {order.cashTendered != null && (
           <>
             <Text style={styles.detail}>

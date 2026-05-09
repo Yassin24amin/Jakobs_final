@@ -14,13 +14,17 @@ import {
 interface POSOrderPanelProps {
   onCash: () => void;
   onCard: () => void;
+  onTapToPay: () => void;
   isSumUpConfigured?: boolean;
+  isTapToPayAvailable?: boolean;
 }
 
 export function POSOrderPanel({
   onCash,
   onCard,
+  onTapToPay,
   isSumUpConfigured,
+  isTapToPayAvailable,
 }: POSOrderPanelProps) {
   const {
     items,
@@ -87,8 +91,10 @@ export function POSOrderPanel({
         isEmpty={isEmpty}
         onCash={onCash}
         onCard={onCard}
+        onTapToPay={onTapToPay}
         onClear={clearCart}
         isSumUpConfigured={isSumUpConfigured}
+        isTapToPayAvailable={isTapToPayAvailable}
       />
     </View>
   );

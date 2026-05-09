@@ -45,20 +45,21 @@ Jakob's is a **single-restaurant food ordering app** for a Shawarma/Doner restau
 
 ## Authentication (Clerk)
 
-Auth uses **Clerk** (native Expo SDK) + **Convex JWT validation**.
+Auth uses **Clerk** (Expo Core 3 via `@clerk/expo`) + **Convex JWT validation**.
 
-- **Provider chain**: `ClerkProvider` → `ConvexProviderWithAuth` → `AuthProvider` → app
-- **Token flow**: Clerk issues JWT → `useConvexClerkAuth` adapter fetches token with `template: "convex"` → Convex validates via `convex/auth.config.ts`
+- **Provider chain**: `ClerkProvider` → `ConvexProviderWithClerk` → `AuthProvider` → app
+- **Token flow**: Clerk issues JWT → `ConvexProviderWithClerk` fetches the `convex` token → Convex validates via `convex/auth.config.ts`
 - **User sync**: On sign-in, `storeUser` mutation creates/updates user record keyed by `tokenIdentifier`
 - **User query**: `currentUser` query reads the authenticated user server-side via `ctx.auth.getUserIdentity()`
 - **Admin emails**: `yahia@bals.pro`, `yassin@bals.pro` (role assigned on first sign-up)
-- **Token cache**: `expo-secure-store` for persistent session across app restarts
-- **Login screen**: Native RN components using `useSignIn`/`useSignUp` hooks (email + password, email verification)
+- **Token cache**: `@clerk/expo/token-cache` for persistent session across app restarts
+- **Expo config**: `@clerk/expo` is included in `app.json` plugins
+- **Login screen**: Native RN custom flow using Core 3 `useSignIn` / `useSignUp` hooks (email + password, email verification)
 - All screens consume `useAuth()` from `contexts/auth-context.tsx` — the interface is unchanged
 
 ### Key Files
-- `convex/auth.config.ts` — Clerk JWT issuer config (reads `CLERK_JWT_ISSUER_DOMAIN` env var)
-- `app/_layout.tsx` — Provider wiring (`ClerkProvider`, `ConvexProviderWithAuth`)
+- `convex/auth.config.ts` — Clerk JWT issuer config (prefers `CLERK_JWT_ISSUER_DOMAIN`, falls back to `CLERK_FRONTEND_API_URL`)
+- `app/_layout.tsx` — Provider wiring (`ClerkProvider`, `ConvexProviderWithClerk`)
 - `contexts/auth-context.tsx` — App auth context (derives state from Clerk + Convex)
 - `convex/users.ts` — `storeUser`, `currentUser`, legacy email helpers
 - `app/login.tsx` — Sign In / Sign Up / Verify screens

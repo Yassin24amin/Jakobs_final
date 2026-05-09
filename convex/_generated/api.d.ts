@@ -31,8 +31,10 @@ import type * as menu from "../menu.js";
 import type * as orders from "../orders.js";
 import type * as payments from "../payments.js";
 import type * as pos from "../pos.js";
+import type * as pos_devices from "../pos_devices.js";
 import type * as seed from "../seed.js";
 import type * as sumup from "../sumup.js";
+import type * as terminal from "../terminal.js";
 import type * as users from "../users.js";
 
 import type {
@@ -65,8 +67,10 @@ declare const fullApi: ApiFromModules<{
   orders: typeof orders;
   payments: typeof payments;
   pos: typeof pos;
+  pos_devices: typeof pos_devices;
   seed: typeof seed;
   sumup: typeof sumup;
+  terminal: typeof terminal;
   users: typeof users;
 }>;
 

@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { useMutation, useQuery } from 'convex/react';
+import React, { createContext, useContext, useEffect, useCallback } from 'react';
+import { useClerk, useUser } from '@clerk/expo';
+import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
-
-const ADMIN_EMAILS = ['yahia@bals.pro', 'yassin@bals.pro'];
 
 interface User {
   id: string;
@@ -17,22 +16,45 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAdmin: boolean;
   logout: () => Promise<void>;
-  login: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [loggedInEmail, setLoggedInEmail] = useState<string | null>(null);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const { signOut } = useClerk();
+  const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { isAuthenticated: isConvexAuthenticated, isLoading: isConvexLoading } =
+    useConvexAuth();
 
-  const getOrCreateByEmail = useMutation(api.users.getOrCreateByEmail);
-
-  // Query the user from Convex whenever we have a logged-in email
+  const storeUser = useMutation(api.users.storeUser);
   const convexUser = useQuery(
-    api.users.getByEmail,
-    loggedInEmail ? { email: loggedInEmail } : 'skip',
+    api.users.currentUser,
+    isConvexAuthenticated ? {} : 'skip',
   );
+
+  const primaryEmail =
+    clerkUser?.primaryEmailAddress?.emailAddress ??
+    clerkUser?.emailAddresses?.[0]?.emailAddress;
+  const displayName =
+    clerkUser?.fullName ??
+    ([clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(' ') ||
+      undefined);
+
+  useEffect(() => {
+    if (isClerkLoaded && clerkUser && isConvexAuthenticated) {
+      storeUser({
+        email: primaryEmail,
+        name: displayName,
+      }).catch(console.error);
+    }
+  }, [
+    clerkUser,
+    displayName,
+    isClerkLoaded,
+    isConvexAuthenticated,
+    primaryEmail,
+    storeUser,
+  ]);
 
   const user: User | null = convexUser
     ? {
@@ -43,34 +65,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     : null;
 
-  const isLoading = isLoggingIn || (loggedInEmail !== null && convexUser === undefined);
-
-  const login = useCallback(
-    async (email: string) => {
-      setIsLoggingIn(true);
-      try {
-        await getOrCreateByEmail({ email: email.trim().toLowerCase() });
-        setLoggedInEmail(email.trim().toLowerCase());
-      } finally {
-        setIsLoggingIn(false);
-      }
-    },
-    [getOrCreateByEmail],
-  );
+  const isLoading =
+    isConvexLoading || (isConvexAuthenticated && convexUser === undefined);
 
   const logout = useCallback(async () => {
-    setLoggedInEmail(null);
-  }, []);
+    await signOut();
+  }, [signOut]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: isConvexAuthenticated && !!user,
         isAdmin: user?.role === 'admin',
         logout,
-        login,
       }}
     >
       {children}

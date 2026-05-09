@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { View, Text, Pressable, StyleSheet, Animated } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { POSCartItem } from "@/contexts/pos-cart-context";
+import { getPaymentMethodLabel } from "@/utils/payment-method";
 import {
   POSColors,
   POSFonts,
@@ -14,7 +15,11 @@ interface POSReceiptViewProps {
   orderNumber: string;
   items: POSCartItem[];
   total: number;
-  paymentMethod: "cash" | "sumup_terminal";
+  paymentMethod:
+    | "cash"
+    | "sumup_terminal"
+    | "stripe_tap_to_pay_iphone"
+    | "stripe_tap_to_pay_android";
   cashTendered?: number;
   changeGiven?: number;
   onDismiss: () => void;
@@ -90,9 +95,7 @@ export function POSReceiptView({
 
         {/* Payment info */}
         <View style={styles.paymentInfo}>
-          <Text style={styles.paymentLabel}>
-            {paymentMethod === "cash" ? "CASH" : "CARD (SUMUP)"}
-          </Text>
+          <Text style={styles.paymentLabel}>{getPaymentMethodLabel(paymentMethod)}</Text>
           {paymentMethod === "cash" && cashTendered !== undefined && (
             <>
               <Text style={styles.paymentDetail}>

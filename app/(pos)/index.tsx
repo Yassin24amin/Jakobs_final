@@ -1,6 +1,11 @@
-import React, { useState, useCallback } from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useMutation } from "convex/react";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { api } from "@/convex/_generated/api";
 import { usePOSCart } from "@/contexts/pos-cart-context";
+import { usePOSDeviceIdentity } from "@/hooks/use-pos-device";
 import { Id } from "@/convex/_generated/dataModel";
 import { POSHeaderBar } from "@/components/pos/pos-header-bar";
 import {
@@ -11,14 +16,23 @@ import { POSItemGrid } from "@/components/pos/pos-item-grid";
 import { POSOrderPanel } from "@/components/pos/pos-order-panel";
 import { POSCashModal } from "@/components/pos/pos-cash-modal";
 import { POSCardPaymentModal } from "@/components/pos/pos-card-payment-modal";
+import { POSTapToPayModal } from "@/components/pos/pos-tap-to-pay-modal";
 import { POSReceiptView } from "@/components/pos/pos-receipt-view";
 import { POSColors } from "@/constants/pos-theme";
 
 export default function POSScreen() {
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<MenuCategory>("all");
   const [showCashModal, setShowCashModal] = useState(false);
   const [showCardModal, setShowCardModal] = useState(false);
+  const [showTapToPayModal, setShowTapToPayModal] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const setDevicePresence = useMutation(api.pos_devices.setPresence);
+  const {
+    deviceInstanceId,
+    isLoading: isDeviceLoading,
+    platform,
+  } = usePOSDeviceIdentity("register");
 
   const {
     addItem,
@@ -26,7 +40,6 @@ export default function POSScreen() {
     total,
     cashTendered,
     changeDue,
-    paymentState,
     lastCompletedOrderNumber,
     resetForNextOrder,
   } = usePOSCart();
@@ -36,10 +49,50 @@ export default function POSScreen() {
     orderNumber: string;
     items: typeof items;
     total: number;
-    paymentMethod: "cash" | "sumup_terminal";
+    paymentMethod:
+      | "cash"
+      | "sumup_terminal"
+      | "stripe_tap_to_pay_iphone"
+      | "stripe_tap_to_pay_android";
     cashTendered?: number;
     changeGiven?: number;
   } | null>(null);
+
+  useEffect(() => {
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isDeviceLoading) return;
+    if (platform !== "ipad") {
+      router.replace("./tap-to-pay-companion");
+    }
+  }, [isDeviceLoading, platform, router]);
+
+  useEffect(() => {
+    if (!deviceInstanceId || platform !== "ipad") return;
+
+    const heartbeat = () => {
+      setDevicePresence({
+        deviceInstanceId,
+        status: "register_ready",
+      }).catch(console.error);
+    };
+
+    heartbeat();
+    const interval = setInterval(heartbeat, 10_000);
+
+    return () => {
+      clearInterval(interval);
+      setDevicePresence({
+        deviceInstanceId,
+        status: "offline",
+      }).catch(() => undefined);
+    };
+  }, [deviceInstanceId, platform, setDevicePresence]);
 
   const handleItemPress = useCallback(
     (id: Id<"menuItems">, name: string, price: number) => {
@@ -54,6 +107,10 @@ export default function POSScreen() {
 
   const handleCard = useCallback(() => {
     setShowCardModal(true);
+  }, []);
+
+  const handleTapToPay = useCallback(() => {
+    setShowTapToPayModal(true);
   }, []);
 
   const handleCashComplete = useCallback(() => {
@@ -86,6 +143,31 @@ export default function POSScreen() {
     setShowCashModal(true);
   }, []);
 
+  const handleSwitchToCardTerminal = useCallback(() => {
+    setShowTapToPayModal(false);
+    setShowCardModal(true);
+  }, []);
+
+  const handleTapToPayComplete = useCallback(
+    ({
+      orderNumber,
+      paymentMethod,
+    }: {
+      orderNumber: string;
+      paymentMethod: "stripe_tap_to_pay_iphone" | "stripe_tap_to_pay_android";
+    }) => {
+      setReceiptData({
+        orderNumber,
+        items: [...items],
+        total,
+        paymentMethod,
+      });
+      setShowTapToPayModal(false);
+      setShowReceipt(true);
+    },
+    [items, total]
+  );
+
   const handleDismissReceipt = useCallback(() => {
     setShowReceipt(false);
     setReceiptData(null);
@@ -96,6 +178,14 @@ export default function POSScreen() {
   // For now, we always show the card button but it will fail gracefully
   // with a "not configured" message if env vars aren't set
   const isSumUpConfigured = true;
+
+  if (isDeviceLoading || platform !== "ipad") {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={POSColors.accent} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -117,7 +207,9 @@ export default function POSScreen() {
         <POSOrderPanel
           onCash={handleCash}
           onCard={handleCard}
+          onTapToPay={handleTapToPay}
           isSumUpConfigured={isSumUpConfigured}
+          isTapToPayAvailable={Boolean(deviceInstanceId)}
         />
       </View>
 
@@ -134,6 +226,18 @@ export default function POSScreen() {
         onClose={() => setShowCardModal(false)}
         onComplete={handleCardComplete}
         onSwitchToCash={handleSwitchToCash}
+      />
+
+      <POSTapToPayModal
+        visible={showTapToPayModal}
+        registerDeviceInstanceId={deviceInstanceId}
+        onClose={() => setShowTapToPayModal(false)}
+        onComplete={handleTapToPayComplete}
+        onSwitchToCash={() => {
+          setShowTapToPayModal(false);
+          setShowCashModal(true);
+        }}
+        onSwitchToCardTerminal={handleSwitchToCardTerminal}
       />
 
       {/* Receipt overlay */}
@@ -155,6 +259,12 @@ export default function POSScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: POSColors.background,
+  },
+  loading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: POSColors.background,
   },
   mainContent: {

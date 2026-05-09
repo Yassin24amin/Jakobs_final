@@ -8,14 +8,20 @@ const ADMIN_EMAILS = ["yahia@bals.pro", "yassin@bals.pro"];
  * Creates or updates the user record keyed by tokenIdentifier.
  */
 export const storeUser = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
     const tokenIdentifier = identity.tokenIdentifier;
+    const resolvedEmail = args.email ?? identity.email ?? "";
+    const normalizedEmail = resolvedEmail.trim().toLowerCase();
+    const resolvedName = args.name ?? identity.name;
 
     // Check if user already exists by tokenIdentifier
     const existing = await ctx.db
@@ -30,22 +36,26 @@ export const storeUser = mutation({
       const updates: Record<string, unknown> = {
         lastLoginAt: Date.now(),
       };
-      if (identity.name) updates.name = identity.name;
-      if (identity.email) updates.email = identity.email;
+      if (resolvedName) updates.name = resolvedName;
+      if (normalizedEmail) {
+        updates.email = normalizedEmail;
+        updates.role = ADMIN_EMAILS.includes(normalizedEmail)
+          ? "admin"
+          : "customer";
+      }
 
       await ctx.db.patch(existing._id, updates);
       return existing._id;
     }
 
     // New user — determine role from email
-    const email = identity.email ?? "";
-    const role = ADMIN_EMAILS.includes(email.toLowerCase())
+    const role = ADMIN_EMAILS.includes(normalizedEmail)
       ? "admin"
       : "customer";
 
     return await ctx.db.insert("users", {
-      email,
-      name: identity.name,
+      email: normalizedEmail,
+      name: resolvedName,
       role,
       tokenIdentifier,
       lastLoginAt: Date.now(),

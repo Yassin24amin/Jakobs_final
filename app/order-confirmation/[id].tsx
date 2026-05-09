@@ -14,6 +14,7 @@ import { Id } from '@/convex/_generated/dataModel';
 import { ZineText } from '@/components/zine-text';
 import { Rule } from '@/components/rule';
 import { Colors, Fonts, FontSizes, Spacing } from '@/constants/theme';
+import { getPaymentMethodLabel } from '@/utils/payment-method';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: Colors.statusPending,
@@ -146,7 +147,7 @@ export default function OrderConfirmationScreen() {
           <View style={styles.detailRow}>
             <ZineText variant="mono" style={styles.detailLabel}>PAYMENT</ZineText>
             <ZineText variant="mono" style={styles.detailValue}>
-              {order.paymentMethod.toUpperCase()}
+              {getPaymentMethodLabel(order.paymentMethod)}
             </ZineText>
           </View>
           {order.deliveryAddress && (

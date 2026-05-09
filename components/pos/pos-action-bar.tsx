@@ -13,16 +13,20 @@ interface POSActionBarProps {
   isEmpty: boolean;
   onCash: () => void;
   onCard: () => void;
+  onTapToPay: () => void;
   onClear: () => void;
   isSumUpConfigured?: boolean;
+  isTapToPayAvailable?: boolean;
 }
 
 export function POSActionBar({
   isEmpty,
   onCash,
   onCard,
+  onTapToPay,
   onClear,
   isSumUpConfigured = false,
+  isTapToPayAvailable = false,
 }: POSActionBarProps) {
   const handleCash = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -37,6 +41,11 @@ export function POSActionBar({
   const handleClear = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onClear();
+  };
+
+  const handleTapToPay = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    onTapToPay();
   };
 
   return (
@@ -63,7 +72,21 @@ export function POSActionBar({
         disabled={isEmpty || !isSumUpConfigured}
       >
         <Text style={[styles.buttonText, styles.cardText]}>
-          {isSumUpConfigured ? "CARD" : "CARD N/A"}
+          {isSumUpConfigured ? "CARD TERMINAL" : "CARD N/A"}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={[
+          styles.button,
+          styles.tapToPayButton,
+          (isEmpty || !isTapToPayAvailable) && styles.disabled,
+        ]}
+        onPress={handleTapToPay}
+        disabled={isEmpty || !isTapToPayAvailable}
+      >
+        <Text style={[styles.buttonText, styles.tapToPayText]}>
+          {isTapToPayAvailable ? "TAP TO PAY" : "TAP TO PAY N/A"}
         </Text>
       </Pressable>
 
@@ -104,6 +127,10 @@ const styles = StyleSheet.create({
     backgroundColor: POSColors.cardBlue,
     flex: 2,
   },
+  tapToPayButton: {
+    backgroundColor: POSColors.accent,
+    flex: 2,
+  },
   clearButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
@@ -118,12 +145,16 @@ const styles = StyleSheet.create({
     fontSize: POSFontSizes.actionButton,
     fontWeight: "700",
     letterSpacing: 2,
+    textAlign: "center",
   },
   cashText: {
     color: POSColors.black,
   },
   cardText: {
     color: POSColors.white,
+  },
+  tapToPayText: {
+    color: POSColors.black,
   },
   clearText: {
     color: POSColors.dangerRed,
